@@ -43,3 +43,17 @@ func (request DeletePartnerReq) Validate() error {
 		validation.Field(&request.ID, validation.Required),
 	)
 }
+
+// GetList request body
+type GetListPartnerReq struct {
+	Name     string `query:"name"`
+	IsActive *bool  `query:"is_active"`
+	PerPage  int64  `query:"per_page"`
+	Page     int64  `query:"page"`
+}
+
+func (request GetListPartnerReq) Validate() error {
+	return validation.ValidateStruct(
+		&request,
+	)
+}

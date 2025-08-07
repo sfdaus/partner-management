@@ -22,9 +22,35 @@ func NewPartnerHandler(e *echo.Echo, middleware *middleware.Middleware, partnerU
 	}
 
 	apiV1 := e.Group("/api/v1")
+	apiV1.GET("/partner-types", handler.GetList)
 	apiV1.POST("/partner-types", handler.Create)
 	apiV1.PATCH("/partner-types/:id", handler.Update)
 	apiV1.DELETE("/partner-types/:id", handler.Delete)
+}
+
+func (h *PartnerHandler) GetList(c echo.Context) error {
+	ctx := c.Request().Context()
+	var req request.GetListPartnerReq
+
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, utils.NewUnprocessableEntityError(err.Error()))
+	}
+
+	if err := req.Validate(); err != nil {
+		errVal := err.(validation.Errors)
+		return c.JSON(http.StatusBadRequest, utils.NewInvalidInputError(errVal))
+	}
+
+	if res, meta, err := h.PartnerUC.GetList(ctx, &req); err != nil {
+		return c.JSON(utils.ParseHttpError(err))
+	} else {
+		return c.JSON(http.StatusCreated, map[string]interface{}{
+			"message": "Partner Type successfully retrieved",
+			"data":    res,
+			"meta":    meta,
+		})
+	}
+
 }
 
 func (h *PartnerHandler) Create(c echo.Context) error {
@@ -44,7 +70,7 @@ func (h *PartnerHandler) Create(c echo.Context) error {
 		return c.JSON(utils.ParseHttpError(err))
 	} else {
 		return c.JSON(http.StatusCreated, map[string]interface{}{
-			"message": "Partner successfully created",
+			"message": "Partner Type successfully created",
 			"data":    res,
 		})
 	}
@@ -69,7 +95,7 @@ func (h *PartnerHandler) Update(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"message": "Partner successfully updated",
+		"message": "Partner Type successfully updated",
 	})
 }
 
@@ -90,7 +116,7 @@ func (h *PartnerHandler) Delete(c echo.Context) error {
 		return c.JSON(utils.ParseHttpError(err))
 	} else {
 		return c.JSON(http.StatusOK, map[string]interface{}{
-			"message": "Partner successfully deleted",
+			"message": "Partner Type successfully deleted",
 			"data": map[string]int64{
 				"rows_affected": rowsAffected,
 			},

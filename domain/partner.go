@@ -18,15 +18,17 @@ type Partner struct {
 	DeletedAt   int64  `json:"deleted_at"`
 }
 
-// // PartnerRepository represent the tag repository contract
+// // PartnerRepository represent the partner repository contract
 type PartnerRepository interface {
-	Create(ctx context.Context, tag *Partner) error
-	Update(ctx context.Context, tag *Partner) error
-	Delete(ctx context.Context, tag *Partner) (int64, error)
+	GetList(ctx context.Context, request *request.GetListPartnerReq) ([]response.GetListPartnerRes, response.MetaRes, error)
+	Create(ctx context.Context, partner *Partner) error
+	Update(ctx context.Context, partner *Partner) error
+	Delete(ctx context.Context, partner *Partner) (int64, error)
 }
 
-// PartnerUsecase represent the tag usecase contract
+// PartnerUsecase represent the partner usecase contract
 type PartnerUsecase interface {
+	GetList(ctx context.Context, request *request.GetListPartnerReq) ([]response.GetListPartnerRes, response.MetaRes, error)
 	Create(ctx context.Context, request *request.CreatePartnerReq) (response.CreatePartnerRes, error)
 	Update(ctx context.Context, request *request.UpdatePartnerReq) error
 	Delete(ctx context.Context, request *request.DeletePartnerReq) (int64, error)

@@ -27,7 +27,14 @@ func NewPartnerUsecase(partnerRepo domain.PartnerRepository, redisRepo redis.Red
 		ctxTimeout:  ctxTimeout,
 	}
 }
+func (u *PartnerUsecase) GetList(c context.Context, request *request.GetListPartnerReq) (res []response.GetListPartnerRes, meta response.MetaRes, err error) {
+	ctx, cancel := context.WithTimeout(c, u.ctxTimeout)
+	defer cancel()
 
+	res, meta, err = u.partnerRepo.GetList(ctx, request)
+
+	return
+}
 func (u *PartnerUsecase) Create(c context.Context, request *request.CreatePartnerReq) (res response.CreatePartnerRes, err error) {
 	ctx, cancel := context.WithTimeout(c, u.ctxTimeout)
 	defer cancel()
@@ -50,7 +57,6 @@ func (u *PartnerUsecase) Create(c context.Context, request *request.CreatePartne
 	err = u.partnerRepo.Create(ctx, partnerPayload)
 	return
 }
-
 func (u *PartnerUsecase) Update(c context.Context, request *request.UpdatePartnerReq) (err error) {
 	ctx, cancel := context.WithTimeout(c, u.ctxTimeout)
 	defer cancel()
