@@ -35,6 +35,14 @@ func (u *PartnerUsecase) GetList(c context.Context, request *request.GetListPart
 
 	return
 }
+func (u *PartnerUsecase) GetDetail(c context.Context, request *request.GetDetailPartnerReq) (res domain.Partner, err error) {
+	ctx, cancel := context.WithTimeout(c, u.ctxTimeout)
+	defer cancel()
+
+	res, err = u.partnerRepo.GetDetail(ctx, request)
+
+	return
+}
 func (u *PartnerUsecase) Create(c context.Context, request *request.CreatePartnerReq) (res response.CreatePartnerRes, err error) {
 	ctx, cancel := context.WithTimeout(c, u.ctxTimeout)
 	defer cancel()

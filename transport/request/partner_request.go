@@ -57,3 +57,15 @@ func (request GetListPartnerReq) Validate() error {
 		&request,
 	)
 }
+
+// GetDetail request body
+type GetDetailPartnerReq struct {
+	ID string `param:"id"`
+}
+
+func (request GetDetailPartnerReq) Validate() error {
+	return validation.ValidateStruct(
+		&request,
+		validation.Field(&request.ID, validation.Required),
+	)
+}

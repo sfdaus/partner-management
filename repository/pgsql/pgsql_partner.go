@@ -7,6 +7,7 @@ import (
 	"prakarsa-app/domain"
 	"prakarsa-app/transport/request"
 	"prakarsa-app/transport/response"
+	"prakarsa-app/utils"
 	"strings"
 )
 
@@ -184,6 +185,63 @@ func (r *pgsqlPartnerRepository) GetList(ctx context.Context, request *request.G
 	}
 	if errRow := rows.Err(); errRow != nil {
 		return nil, meta, errRow
+	}
+
+	return
+}
+
+func (r *pgsqlPartnerRepository) GetDetail(ctx context.Context, request *request.GetDetailPartnerReq) (res domain.Partner, err error) {
+
+	const query = `
+					SELECT
+					  id,
+					  name,
+					  description,
+					  is_active,
+					  created_at,
+					  created_by,
+					  updated_at,
+					  updated_by,
+					  deleted_at
+					FROM partner_types
+					WHERE id = $1
+					LIMIT 1
+					`
+
+	// 1. QueryRowContext untuk ambil satu baris
+	row := r.db.QueryRowContext(ctx, query, request.ID)
+
+	// 2. Scan kolom ke field di domain.Partner
+	// since created_at is NOT NULL int8:
+	var createdAt int64
+	// updated_at/deleted_at can be NULL, so use NullInt64:
+	var updatedAt, deletedAt sql.NullInt64
+
+	err = row.Scan(
+		&res.ID,
+		&res.Name,
+		&res.Description,
+		&res.IsActive,
+		&createdAt,
+		&res.CreatedBy,
+		&updatedAt,
+		&res.UpdatedBy,
+		&deletedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return res, utils.NewNotFoundError("partner not found")
+		}
+		return res, err
+	}
+
+	// assign into your domain fields
+	res.CreatedAt = createdAt
+	if updatedAt.Valid {
+		res.UpdatedAt = updatedAt.Int64
+	}
+	if deletedAt.Valid {
+		res.DeletedAt = deletedAt.Int64
 	}
 
 	return
