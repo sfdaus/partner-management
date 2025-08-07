@@ -29,6 +29,15 @@ func NewPartnerHandler(e *echo.Echo, middleware *middleware.Middleware, partnerU
 	apiV1.DELETE("/partner-types/:id", handler.Delete)
 }
 
+// GetList godoc
+// @Summary GetList
+// @Description Get List Partner Type
+// @Tags Partner Type
+// @Accept json
+// @Produce json
+// @Param getlist query request.GetListPartnerReq false "GetList Partner Types"
+// @Success 200
+// @Router /api/v1/partner-types [get]
 func (h *PartnerHandler) GetList(c echo.Context) error {
 	ctx := c.Request().Context()
 	var req request.GetListPartnerReq
