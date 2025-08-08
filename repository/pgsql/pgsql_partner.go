@@ -216,6 +216,7 @@ func (r *pgsqlPartnerRepository) GetDetail(ctx context.Context, request *request
 	var createdAt int64
 	// updated_at/deleted_at can be NULL, so use NullInt64:
 	var updatedAt, deletedAt sql.NullInt64
+	var updatedBy sql.NullString
 
 	err = row.Scan(
 		&res.ID,
@@ -225,7 +226,7 @@ func (r *pgsqlPartnerRepository) GetDetail(ctx context.Context, request *request
 		&createdAt,
 		&res.CreatedBy,
 		&updatedAt,
-		&res.UpdatedBy,
+		&updatedBy,
 		&deletedAt,
 	)
 	if err != nil {
@@ -242,6 +243,9 @@ func (r *pgsqlPartnerRepository) GetDetail(ctx context.Context, request *request
 	}
 	if deletedAt.Valid {
 		res.DeletedAt = deletedAt.Int64
+	}
+	if updatedBy.Valid {
+		res.UpdatedBy = updatedBy.String
 	}
 
 	return
