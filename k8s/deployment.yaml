@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: partner-type-api
+  namespace: prakarsa
+  labels: { app: partner-type-api }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: partner-type-api } }
+  template:
+    metadata: { labels: { app: partner-type-api } }
+    spec:
+      containers:
+        - name: partner-type-api
+          image: partner-type-api:1.0   # image lokal yang kamu import ke k3s
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          # probe TCP biar aman kalau belum ada /healthz
+          readinessProbe:
+            tcpSocket: { port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: 8080 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "256Mi" }
+          # (opsional) ENV dari Secret .env
+          envFrom:
+             - secretRef: { name: partner-type-api-env }

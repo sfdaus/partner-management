@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: partner-type-api
+  namespace: prakarsa
+spec:
+  type: ClusterIP
+  selector: { app: partner-type-api }
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
