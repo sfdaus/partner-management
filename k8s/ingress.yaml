@@ -10,7 +10,7 @@ spec:
     - host: no-middleware-dev-api.prakarsa.id
       http:
         paths:
-          - path: /
+          - path: /api/v1/partner-management
             pathType: Prefix
             backend:
               service:
