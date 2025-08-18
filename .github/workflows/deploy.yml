@@ -103,19 +103,41 @@ jobs:
             # === set image ke FULL SHA untuk trigger rollout ===
             kubectl -n $NS set image deploy/$APP $APP=$IMAGE --record
 
-            # === tunggu deployment available
-            kubectl -n $NS rollout status deploy/$APP --timeout=600s
-            
-            # === tunggu pod dari ReplicaSet TERBARU yang Ready
-            NEW_HASH=$(kubectl -n $NS get deploy/$APP -o jsonpath='{.spec.template.metadata.labels.pod-template-hash}')
-            kubectl -n $NS wait --for=condition=Ready \
-            pod -l app=$APP,pod-template-hash="$NEW_HASH" --timeout=300s
-            
-            # === (opsional) tunggu pod lama terhapus biar nggak ada duplikat Ready
-            kubectl -n $NS wait --for=delete \
-            pod -l app=$APP,pod-template-hash!="$NEW_HASH" --timeout=120s || true
-            
-            # === ringkas: tampilkan status akhir
-            kubectl -n $NS get deploy/$APP
-            kubectl -n $NS get pods -l app=$APP -o wide
-            echo "Deploy OK (ReplicaSet terbaru: $NEW_HASH)"
+            # === tunggu Ready & guard ErrImagePull ===
+            if ! kubectl -n $NS wait deploy/$APP --for=condition=available --timeout=600s; then
+              kubectl -n $NS get pods -l app=$APP -o wide
+              POD=$(kubectl -n $NS get pods -l app=$APP --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].0.metadata.name}')
+              kubectl -n $NS describe pod "$POD" | sed -n '/Events/,$p' || true
+              exit 1
+            fi
+            POD=$(kubectl -n $NS get pods -l app=$APP --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].0.metadata.name}')
+            REASON=$(kubectl -n $NS get pod "$POD" -o jsonpath='{.status.containerStatuses[0].state.waiting.reason}' 2>/dev/null || true)
+            if [ "$REASON" = "ImagePullBackOff" ] || [ "$REASON" = "ErrImagePull" ]; then
+              echo "New pod cannot pull $IMAGE"
+              kubectl -n $NS describe pod "$POD" | sed -n '/Events/,$p' || true
+              exit 1
+            fi
+
+            # === prune ReplicaSet lama (keep 2) ===
+            kubectl -n $NS get rs -l app=$APP --sort-by=.metadata.creationTimestamp \
+              -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.spec.replicas}{"\n"}{end}' \
+            | awk '$2==0{print $1}' | head -n -2 | xargs -r kubectl -n $NS delete rs
+
+            # === prune images di node (keep 2 terakhir) ===
+            IMAGES_SORTED=$(kubectl -n $NS get rs -l app=$APP \
+              -o jsonpath='{range .items[*]}{.metadata.creationTimestamp}{" "}{.spec.template.spec.containers[0].image}{"\n"}{end}' | sort)
+            KEEP1=$(echo "$IMAGES_SORTED" | tail -n1 | awk '{print $2}')
+            KEEP2=$(echo "$IMAGES_SORTED" | tail -n2 | head -n1 | awk '{print $2}')
+            for IMG in $(sudo ctr -n k8s.io images ls | awk -v r="ghcr.io/${OWNER}/${APP}" '$1 ~ r {print $1}'); do
+              if [ "$IMG" != "$KEEP1" ] && [ "$IMG" != "$KEEP2" ]; then
+                sudo ctr -n k8s.io images rm "$IMG" || true
+              fi
+            done
+
+            # === sanity: pastikan cuma 1 pod Ready ===
+            READY=$(kubectl -n $NS get pods -l app=$APP -o jsonpath='{range .items[*]}{.status.containerStatuses[0].ready}{"\n"}{end}' | grep -c '^true$' || true)
+            if [ "$READY" -ne 1 ]; then
+              kubectl -n $NS get pods -l app=$APP -o wide
+              echo "Expected exactly 1 Ready pod; found $READY"; exit 1
+            fi
+            echo "Deploy OK → 1 pod Ready; kept images: $KEEP1 , $KEEP2"
