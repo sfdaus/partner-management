@@ -134,10 +134,14 @@ jobs:
               fi
             done
 
-            # === sanity: pastikan cuma 1 pod Ready ===
-            READY=$(kubectl -n $NS get pods -l app=$APP -o jsonpath='{range .items[*]}{.status.containerStatuses[0].ready}{"\n"}{end}' | grep -c '^true$' || true)
-            if [ "$READY" -ne 1 ]; then
-              kubectl -n $NS get pods -l app=$APP -o wide
-              echo "Expected exactly 1 Ready pod; found $READY"; exit 1
-            fi
-            echo "Deploy OK → 1 pod Ready; kept images: $KEEP1 , $KEEP2"
+            # tunggu deployment available (handle rolling update)
+            kubectl -n $NS rollout status deploy/$APP --timeout=600s
+            
+            # pastikan ReplicaSet terbaru Ready
+            NEW_HASH=$(kubectl -n $NS get deploy/$APP -o jsonpath='{.spec.template.metadata.labels.pod-template-hash}')
+            kubectl -n $NS wait --for=condition=Ready pod -l app=$APP,pod-template-hash="$NEW_HASH" --timeout=300s
+            
+            # tampilkan status
+            kubectl -n $NS get deploy/$APP
+            kubectl -n $NS get pods -l app=$APP -o wide
+            echo "Deploy OK (RS: $NEW_HASH)"
