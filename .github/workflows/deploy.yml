@@ -20,7 +20,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ steps.vars.outputs.owner_lc }}/notification-management
+          images: ghcr.io/${{ steps.vars.outputs.owner_lc }}/partner-management
           tags: |
             type=raw,value=latest
             type=sha,format=long,prefix=
@@ -47,7 +47,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           source: "k8s/*"
-          target: "notification-management"
+          target: "partner-management"
 
       - name: Deploy on VPS via SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -63,16 +63,16 @@ jobs:
             export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 
             NS=prakarsa
-            APP=notification-management
+            APP=partner-management
             OWNER="${{ steps.vars.outputs.owner_lc }}"
             TAG="${{ github.sha }}"
             IMAGE="ghcr.io/${OWNER}/${APP}:${TAG}"
 
-            # === ambil PAT dari secret notification-management-env (key: GITHUB_TOKEN). fallback: GHCR_PAT dari Actions ===
-            PAT=$(kubectl -n $NS get secret notification-management-env -o jsonpath='{.data.GITHUB_TOKEN}' 2>/dev/null | base64 -d || true)
+            # === ambil PAT dari secret partner-management-env (key: GITHUB_TOKEN). fallback: GHCR_PAT dari Actions ===
+            PAT=$(kubectl -n $NS get secret partner-management-env -o jsonpath='{.data.GITHUB_TOKEN}' 2>/dev/null | base64 -d || true)
             [ -z "$PAT" ] && PAT="${GHCR_PAT:-}"
             if [ -z "$PAT" ]; then
-              echo "FATAL: tidak menemukan PAT di secret 'notification-management-env' (key GITHUB_TOKEN) maupun secrets.GHCR_PAT"; exit 1
+              echo "FATAL: tidak menemukan PAT di secret 'partner-management-env' (key GITHUB_TOKEN) maupun secrets.GHCR_PAT"; exit 1
             fi
 
             # === upsert imagePullSecret untuk GHCR ===
@@ -84,10 +84,10 @@ jobs:
               --dry-run=client -o yaml | kubectl apply -f -
 
             # === APPLY MANIFESTS DULU (create Deployment) ===
-            # kalau kamu pakai kustomize, ganti: kubectl -n $NS apply -k ~/notification-management/k8s/
-            kubectl -n $NS apply -f ~/notification-management/k8s/
+            # kalau kamu pakai kustomize, ganti: kubectl -n $NS apply -k ~/partner-management/k8s/
+            kubectl -n $NS apply -f ~/partner-management/k8s/
 
-            # pastikan deployment 'notification-management' memang ada
+            # pastikan deployment 'partner-management' memang ada
             if ! kubectl -n $NS get deploy/$APP >/dev/null 2>&1; then
               echo "FATAL: setelah apply, deployment '$APP' tetap tidak ada. Cek metadata.name di k8s/deployment.yaml"; 
               kubectl -n $NS get deploy -o wide; exit 1
