@@ -1,11 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: partner-type-api
+  name: partner-management
   namespace: prakarsa
+  labels:
+    app: partner-management
 spec:
   type: ClusterIP
-  selector: { app: partner-type-api }
+  selector:
+    app: partner-management
   ports:
     - name: http
       port: 80
