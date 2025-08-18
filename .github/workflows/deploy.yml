@@ -1,0 +1,118 @@
+name: build-and-deploy
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set lowercase owner
+        id: vars
+        run: echo "owner_lc=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_OUTPUT
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ steps.vars.outputs.owner_lc }}/partner-management
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long,prefix=
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags:   ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Copy k8s manifests to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          source: "k8s/*"
+          target: "partner-management"
+
+      - name: Deploy on VPS via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}   # optional fallback
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -Eeuo pipefail
+            export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+
+            NS=prakarsa
+            APP=partner-management
+            OWNER="${{ steps.vars.outputs.owner_lc }}"
+            TAG="${{ github.sha }}"
+            IMAGE="ghcr.io/${OWNER}/${APP}:${TAG}"
+
+            # === ambil PAT dari secret partner-management-env (key: GITHUB_TOKEN). fallback: GHCR_PAT dari Actions ===
+            PAT=$(kubectl -n $NS get secret partner-management-env -o jsonpath='{.data.GITHUB_TOKEN}' 2>/dev/null | base64 -d || true)
+            [ -z "$PAT" ] && PAT="${GHCR_PAT:-}"
+            if [ -z "$PAT" ]; then
+              echo "FATAL: tidak menemukan PAT di secret 'partner-management-env' (key GITHUB_TOKEN) maupun secrets.GHCR_PAT"; exit 1
+            fi
+
+            # === upsert imagePullSecret untuk GHCR ===
+            kubectl -n $NS create secret docker-registry ghcr-login \
+              --docker-server=ghcr.io \
+              --docker-username="${OWNER}" \
+              --docker-password="${PAT}" \
+              --docker-email="-" \
+              --dry-run=client -o yaml | kubectl apply -f -
+
+            # === APPLY MANIFESTS DULU (create Deployment) ===
+            # kalau kamu pakai kustomize, ganti: kubectl -n $NS apply -k ~/partner-management/k8s/
+            kubectl -n $NS apply -f ~/partner-management/k8s/
+
+            # pastikan deployment 'partner-management' memang ada
+            if ! kubectl -n $NS get deploy/$APP >/dev/null 2>&1; then
+              echo "FATAL: setelah apply, deployment '$APP' tetap tidak ada. Cek metadata.name di k8s/deployment.yaml"; 
+              kubectl -n $NS get deploy -o wide; exit 1
+            fi
+
+            # === patch imagePullSecrets pada template pod (add/replace idempotent) ===
+            kubectl -n $NS patch deploy/$APP --type=json -p='[
+              {"op":"add","path":"/spec/template/spec/imagePullSecrets","value":[{"name":"ghcr-login"}]}
+            ]' || kubectl -n $NS patch deploy/$APP --type=json -p='[
+              {"op":"replace","path":"/spec/template/spec/imagePullSecrets","value":[{"name":"ghcr-login"}]}
+            ]'
+
+            # === set image ke FULL SHA untuk trigger rollout ===
+            kubectl -n $NS set image deploy/$APP $APP=$IMAGE --record
+
+            # === tunggu deployment available
+            kubectl -n $NS rollout status deploy/$APP --timeout=600s
+            
+            # === tunggu pod dari ReplicaSet TERBARU yang Ready
+            NEW_HASH=$(kubectl -n $NS get deploy/$APP -o jsonpath='{.spec.template.metadata.labels.pod-template-hash}')
+            kubectl -n $NS wait --for=condition=Ready \
+            pod -l app=$APP,pod-template-hash="$NEW_HASH" --timeout=300s
+            
+            # === (opsional) tunggu pod lama terhapus biar nggak ada duplikat Ready
+            kubectl -n $NS wait --for=delete \
+            pod -l app=$APP,pod-template-hash!="$NEW_HASH" --timeout=120s || true
+            
+            # === ringkas: tampilkan status akhir
+            kubectl -n $NS get deploy/$APP
+            kubectl -n $NS get pods -l app=$APP -o wide
+            echo "Deploy OK (ReplicaSet terbaru: $NEW_HASH)"

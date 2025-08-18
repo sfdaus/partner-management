@@ -1,0 +1,38 @@
+info:
+  contact: {}
+  termsOfService: http://swagger.io/terms/
+  title: Go Boilerplate
+  version: 1.0.4
+paths:
+  /api/v1/partner-types:
+    get:
+      consumes:
+      - application/json
+      description: Get List Partner Type
+      parameters:
+      - in: query
+        name: isActive
+        type: boolean
+      - in: query
+        name: name
+        type: string
+      - in: query
+        name: page
+        type: integer
+      - in: query
+        name: perPage
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: GetList
+      tags:
+      - Partner Type
+securityDefinitions:
+  JwtToken:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

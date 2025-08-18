@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: partner-management
+  namespace: prakarsa
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+    - host: no-middleware-dev-api.prakarsa.id
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: partner-management
+                port:
+                  number: 80
