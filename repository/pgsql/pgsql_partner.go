@@ -250,3 +250,111 @@ func (r *pgsqlPartnerRepository) GetDetail(ctx context.Context, request *request
 
 	return
 }
+
+func (r *pgsqlPartnerRepository) GetListCompensationTypes(ctx context.Context, request *request.GetListCompensationTypesReq) (res []response.GetListCompensationRes, meta response.MetaRes, err error) {
+	// 1. Build WHERE clauses
+	wheres := []string{}
+	args := []interface{}{}
+	idx := 1
+
+	if request.Name != "" {
+		wheres = append(wheres, fmt.Sprintf("name ILIKE $%d", idx))
+		args = append(args, "%"+request.Name+"%")
+		idx++
+	}
+
+	if request.IsActive != nil {
+		wheres = append(wheres, fmt.Sprintf("is_active = $%d", idx))
+		args = append(args, request.IsActive)
+		idx++
+	}
+
+	whereSQL := ""
+	if len(wheres) > 0 {
+		whereSQL = "WHERE " + strings.Join(wheres, " AND ")
+	}
+
+	// --- 2. Hitung totalCount dulu (tanpa LIMIT/OFFSET) ---
+	countQuery := fmt.Sprintf(
+		"SELECT COUNT(*) FROM compensation_types %s",
+		whereSQL,
+	)
+	if err = r.db.QueryRowContext(ctx, countQuery, args...).Scan(&meta.TotalData); err != nil {
+		return nil, meta, err
+	}
+
+	// 2. Calculate LIMIT & OFFSET
+	perPage := request.PerPage
+	if perPage <= 0 {
+		perPage = 10
+	}
+	page := request.Page
+	if page <= 0 {
+		page = 1
+	}
+
+	// total pages = ceil(total / perPage)
+	meta.Page = page
+	meta.PerPage = perPage
+	meta.TotalPages = (meta.TotalData + perPage - 1) / perPage
+
+	offset := (page - 1) * perPage
+
+	// add LIMIT & OFFSET to args
+	args = append(args, perPage, offset)
+	limitPos, offsetPos := idx, idx+1
+
+	// 3. Final query
+	query := fmt.Sprintf(`
+        SELECT
+            id, name, description,
+            is_active
+        FROM compensation_types
+        %s
+        ORDER BY created_at DESC
+        LIMIT $%d OFFSET $%d
+    `, whereSQL, limitPos, offsetPos)
+
+	// 4. Execute
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, meta, err
+	}
+	defer rows.Close()
+
+	// 5. Scan results
+	for rows.Next() {
+		var item response.GetListCompensationRes
+		var description sql.NullString
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.Name,
+			&description,
+			&item.IsActive,
+		); err != nil {
+			return nil, meta, err
+		}
+
+		if description.Valid {
+			item.Description = description.String
+		}
+
+		res = append(res, item)
+	}
+	if errRow := rows.Err(); errRow != nil {
+		return nil, meta, errRow
+	}
+
+	return
+}
+
+func (r *pgsqlPartnerRepository) CreateCompensationType(ctx context.Context, compensationType *domain.CompensationType) (err error) {
+	query := `INSERT INTO compensation_types (id, name, description, is_active, created_by, created_at) VALUES ($1, $2, $3, $4, $5, $6)`
+	if _, err = r.db.ExecContext(ctx, query, compensationType.ID, compensationType.Name, compensationType.Description,
+		compensationType.IsActive, compensationType.CreatedBy, compensationType.CreatedAt); err != nil {
+		return err
+	}
+
+	return
+}
