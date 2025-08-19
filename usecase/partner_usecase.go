@@ -102,3 +102,33 @@ func (u *PartnerUsecase) Delete(c context.Context, request *request.DeletePartne
 	rowsAffected, err = u.partnerRepo.Delete(ctx, threadPayload)
 	return
 }
+func (u *PartnerUsecase) GetListCompensationTypes(c context.Context, request *request.GetListCompensationTypesReq) (res []response.GetListCompensationRes, meta response.MetaRes, err error) {
+	ctx, cancel := context.WithTimeout(c, u.ctxTimeout)
+	defer cancel()
+
+	res, meta, err = u.partnerRepo.GetListCompensationTypes(ctx, request)
+
+	return
+}
+func (u *PartnerUsecase) CreateCompensationType(c context.Context, request *request.CreateCompensationTypeReq) (res response.CreateCompensationRes, err error) {
+	ctx, cancel := context.WithTimeout(c, u.ctxTimeout)
+	defer cancel()
+
+	// Create Payload
+	compensationTypeID := uuid.NewString()
+	t := true
+	compensationTypePayload := &domain.CompensationType{
+		ID:          compensationTypeID,
+		Name:        request.Name,
+		Description: request.Description,
+		IsActive:    &t,
+		CreatedBy:   "TODO_created_by",
+		CreatedAt:   time.Now().Unix(),
+	}
+
+	// Response Payload
+	res.ID = compensationTypeID
+
+	err = u.partnerRepo.CreateCompensationType(ctx, compensationTypePayload)
+	return
+}

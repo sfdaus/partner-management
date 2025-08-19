@@ -27,6 +27,8 @@ func NewPartnerHandler(e *echo.Echo, middleware *middleware.Middleware, partnerU
 	apiV1.POST("/partner-types", handler.Create)
 	apiV1.PATCH("/partner-types/:id", handler.Update)
 	apiV1.DELETE("/partner-types/:id", handler.Delete)
+	apiV1.GET("/partner-types/list-compensation-types", handler.GetListCompensationTypes)
+	apiV1.POST("/partner-types/create-compensation-type", handler.CreateCompensationType)
 }
 
 // GetList godoc
@@ -55,7 +57,7 @@ func (h *PartnerHandler) GetList(c echo.Context) error {
 		return c.JSON(utils.ParseHttpError(err))
 	} else {
 		return c.JSON(http.StatusOK, map[string]interface{}{
-			"message": "Partner Type successfully retrieved",
+			"message": "Partner type successfully retrieved",
 			"data":    res,
 			"meta":    meta,
 		})
@@ -80,7 +82,7 @@ func (h *PartnerHandler) GetDetail(c echo.Context) error {
 		return c.JSON(utils.ParseHttpError(err))
 	} else {
 		return c.JSON(http.StatusOK, map[string]interface{}{
-			"message": "Partner Type successfully retrieved",
+			"message": "Partner type successfully retrieved",
 			"data":    res,
 		})
 	}
@@ -104,7 +106,7 @@ func (h *PartnerHandler) Create(c echo.Context) error {
 		return c.JSON(utils.ParseHttpError(err))
 	} else {
 		return c.JSON(http.StatusCreated, map[string]interface{}{
-			"message": "Partner Type successfully created",
+			"message": "Partner type successfully created",
 			"data":    res,
 		})
 	}
@@ -129,7 +131,7 @@ func (h *PartnerHandler) Update(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"message": "Partner Type successfully updated",
+		"message": "Partner type successfully updated",
 	})
 }
 
@@ -150,10 +152,58 @@ func (h *PartnerHandler) Delete(c echo.Context) error {
 		return c.JSON(utils.ParseHttpError(err))
 	} else {
 		return c.JSON(http.StatusOK, map[string]interface{}{
-			"message": "Partner Type successfully deleted",
+			"message": "Partner type successfully deleted",
 			"data": map[string]int64{
 				"rows_affected": rowsAffected,
 			},
 		})
 	}
+}
+
+func (h *PartnerHandler) GetListCompensationTypes(c echo.Context) error {
+	ctx := c.Request().Context()
+	var req request.GetListCompensationTypesReq
+
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, utils.NewUnprocessableEntityError(err.Error()))
+	}
+
+	if err := req.Validate(); err != nil {
+		errVal := err.(validation.Errors)
+		return c.JSON(http.StatusBadRequest, utils.NewInvalidInputError(errVal))
+	}
+
+	if res, meta, err := h.PartnerUC.GetListCompensationTypes(ctx, &req); err != nil {
+		return c.JSON(utils.ParseHttpError(err))
+	} else {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"message": "Compensation types successfully retrieved",
+			"data":    res,
+			"meta":    meta,
+		})
+	}
+}
+
+func (h *PartnerHandler) CreateCompensationType(c echo.Context) error {
+	ctx := c.Request().Context()
+	var req request.CreateCompensationTypeReq
+
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, utils.NewUnprocessableEntityError(err.Error()))
+	}
+
+	if err := req.Validate(); err != nil {
+		errVal := err.(validation.Errors)
+		return c.JSON(http.StatusBadRequest, utils.NewInvalidInputError(errVal))
+	}
+
+	if res, err := h.PartnerUC.CreateCompensationType(ctx, &req); err != nil {
+		return c.JSON(utils.ParseHttpError(err))
+	} else {
+		return c.JSON(http.StatusCreated, map[string]interface{}{
+			"message": "Compensation type successfully created",
+			"data":    res,
+		})
+	}
+
 }

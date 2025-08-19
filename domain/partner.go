@@ -25,6 +25,8 @@ type PartnerRepository interface {
 	Create(ctx context.Context, partner *Partner) error
 	Update(ctx context.Context, partner *Partner) error
 	Delete(ctx context.Context, partner *Partner) (int64, error)
+	GetListCompensationTypes(ctx context.Context, request *request.GetListCompensationTypesReq) ([]response.GetListCompensationRes, response.MetaRes, error)
+	CreateCompensationType(ctx context.Context, compensationType *CompensationType) error
 }
 
 // PartnerUsecase represent the partner usecase contract
@@ -34,4 +36,6 @@ type PartnerUsecase interface {
 	Create(ctx context.Context, request *request.CreatePartnerReq) (response.CreatePartnerRes, error)
 	Update(ctx context.Context, request *request.UpdatePartnerReq) error
 	Delete(ctx context.Context, request *request.DeletePartnerReq) (int64, error)
+	GetListCompensationTypes(ctx context.Context, request *request.GetListCompensationTypesReq) ([]response.GetListCompensationRes, response.MetaRes, error)
+	CreateCompensationType(ctx context.Context, req *request.CreateCompensationTypeReq) (response.CreateCompensationRes, error)
 }
