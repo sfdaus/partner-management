@@ -8,18 +8,21 @@ import (
 type CreatePartnerReq struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	UserID      string
 }
 
 func (request CreatePartnerReq) Validate() error {
 	return validation.ValidateStruct(
 		&request,
 		validation.Field(&request.Name, validation.Required),
+		validation.Field(&request.UserID, validation.Required),
 	)
 }
 
 // Update request body
 type UpdatePartnerReq struct {
 	ID          string `param:"id"`
+	UserID      string
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	IsActive    *bool  `json:"is_active"`
@@ -29,18 +32,21 @@ func (request UpdatePartnerReq) Validate() error {
 	return validation.ValidateStruct(
 		&request,
 		validation.Field(&request.ID, validation.Required),
+		validation.Field(&request.UserID, validation.Required),
 	)
 }
 
 // Delete request body
 type DeletePartnerReq struct {
-	ID string `param:"id"`
+	ID     string `param:"id"`
+	UserID string
 }
 
 func (request DeletePartnerReq) Validate() error {
 	return validation.ValidateStruct(
 		&request,
 		validation.Field(&request.ID, validation.Required),
+		validation.Field(&request.UserID, validation.Required),
 	)
 }
 

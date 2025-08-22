@@ -18,11 +18,13 @@ func (request GetListCompensationTypesReq) Validate() error {
 type CreateCompensationTypeReq struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	UserID      string
 }
 
 func (request CreateCompensationTypeReq) Validate() error {
 	return validation.ValidateStruct(
 		&request,
 		validation.Field(&request.Name, validation.Required),
+		validation.Field(&request.UserID, validation.Required),
 	)
 }

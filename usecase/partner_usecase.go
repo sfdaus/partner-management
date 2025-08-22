@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"fmt"
 	"prakarsa-app/transport/response"
 	"time"
 
@@ -55,7 +54,7 @@ func (u *PartnerUsecase) Create(c context.Context, request *request.CreatePartne
 		Name:        request.Name,
 		Description: request.Description,
 		IsActive:    &t,
-		CreatedBy:   "TODO_created_by",
+		CreatedBy:   request.UserID,
 		CreatedAt:   time.Now().Unix(),
 	}
 
@@ -72,14 +71,14 @@ func (u *PartnerUsecase) Update(c context.Context, request *request.UpdatePartne
 	// Update Payload
 	partnerPayload := &domain.Partner{
 		ID:        request.ID,
-		UpdatedBy: "TODO_updated_by",
+		UpdatedBy: request.UserID,
 		UpdatedAt: time.Now().Unix(),
 	}
 
 	if request.Name != "" {
 		partnerPayload.Name = request.Name
 	}
-	fmt.Println(request)
+
 	if request.Description != "" {
 		partnerPayload.Description = request.Description
 	}
@@ -122,7 +121,7 @@ func (u *PartnerUsecase) CreateCompensationType(c context.Context, request *requ
 		Name:        request.Name,
 		Description: request.Description,
 		IsActive:    &t,
-		CreatedBy:   "TODO_created_by",
+		CreatedBy:   request.UserID,
 		CreatedAt:   time.Now().Unix(),
 	}
 
